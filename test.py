@@ -1,6 +1,16 @@
 #!/usr/bin/env python
-import utils as util
+from utils.dropCols import drop_cols
 
-cols = util.file_to_list("test.txt")
+from extract import get_pbp
+import polars as pl
 
-print(cols)
+test = get_pbp([2024, 2025]).sample(100)
+test.sample(20)
+
+test2 = drop_cols(test, "~/Dev/cspb4022-project/dropCalculatedStats.txt")
+test2.sample(20)
+
+
+
+
+
