@@ -1,0 +1,7 @@
+was_pressure
+route
+defense_man_zone_type
+defense_coverage_type
+defenders_in_box
+offense_positions
+defense_positions

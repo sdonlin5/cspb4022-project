@@ -1,0 +1,10 @@
+starting_hash
+is_drop
+is_qb_sneak
+is_trick_play
+is_throw_away
+is_play_action
+is_screen_pass
+n_blitzers
+n_pass_rushers
+qb_location
