@@ -4,22 +4,32 @@ Functions to load data and convert to polars lazyframe.
 
 import nflreadpy as nfl
 import polars as pl
-
+from .utilities import get_dimensions
 
 def extract_pbp(seasons: list = None) -> pl.LazyFrame:
     ''' Extract play by play data from NFLverse, default = 2025 season '''
+
     if seasons:
-        return nfl.load_pbp(seasons).lazy()
-    else:
-        return nfl.load_pbp().lazy()
+        lf = nfl.load_pbp(seasons).lazy()
+    else: 
+        lf = nfl.load_pbp().lazy()
+
+    cols = get_dimensions('pbp')
+    lf.select(cols)
+    return lf.select(cols).collect()
 
 
 def extract_schedules(seasons: list = None) -> pl.LazyFrame:
     ''' Extract schedule data from NFLverse, default = 2025 season'''
-    if seasons: 
-        return nfl.load_schedules(seasons).lazy()
+    if seasons:
+        lf = nfl.load_schedules(seasons).lazy() 
+        return 
     else: 
-        return nfl.load_schedules().lazy()
+        lf = nfl.load_schedules().lazy()
+    cols = get_dimensions('schedule')
+    lf.select(cols)
+    return lf.select(cols).collect()
+    
 
 
 def extract_participation(seasons: list = None) -> pl.LazyFrame:
