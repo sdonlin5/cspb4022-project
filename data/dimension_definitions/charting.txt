@@ -1,3 +1,4 @@
+nflverse_game_id
 starting_hash
 is_drop
 is_qb_sneak

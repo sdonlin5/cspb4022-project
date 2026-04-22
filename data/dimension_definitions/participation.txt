@@ -1,3 +1,4 @@
+nflverse_game_id
 was_pressure
 route
 defense_man_zone_type

@@ -1,5 +1,6 @@
 import nflreadpy as nfl
 import polars as pl
+from utils import get_dimensions
 
 
 def extract_pbp(seasons: list = None) -> pl.DataFrame:
