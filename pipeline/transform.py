@@ -129,8 +129,14 @@ def tansform_schedule(raw_schedule: pl.DataFrame) -> pl.LazyFrame:
      return result
 
 def transform_situation(raw_pbp: pl.DataFrame, raw_charting: pl.DataFrame) -> pl.LazyFrame:
+     ''' Transforms situation data for ingestion '''
      pbp = raw_pbp.lazy().select(['game_id', 'play_id', 'posteam', 'yardline_100', 'qtr', 'down', 'quarter_seconds_remaining', 'goal_to_go', 'ydstogo'])
      charting = raw_charting.lazy().select(['starting_hash', 'nflverse_game_id', 'nflverse_play_id'])
+
+     hash_map = {
+          'O': 'M',
+          '0': 'M'
+     }
 
      joined = pbp.join(
           charting,
@@ -140,8 +146,8 @@ def transform_situation(raw_pbp: pl.DataFrame, raw_charting: pl.DataFrame) -> pl
      )
      
      result = joined.with_columns(
-          
-          starting_hash=pl.col('starting_hash').replace('O', 'M'),
+          starting_hash=pl.col('starting_hash')
+          .replace(hash_map, default=pl.col('starting_hash')),
           
           goal_to_go=pl.col('goal_to_go').cast(pl.Boolean),
           
@@ -153,8 +159,10 @@ def transform_situation(raw_pbp: pl.DataFrame, raw_charting: pl.DataFrame) -> pl
                 .cast(pl.Int32)
         ).rename({
              'starting_hash' : 'hash',
-             'quarter_seconds_remaining' : 'qtr_seconds'
-             
+             'quarter_seconds_remaining' : 'qtr_seconds',
+             'ydstogo' : 'yds_to_go'
             }
         ).drop(['nflverse_game_id','nflverse_play_id', 'yardline_100'])
+     
+    
      return result
