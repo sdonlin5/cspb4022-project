@@ -2,7 +2,7 @@ from sqlmodel import SQLModel, Field
 
 class Play(SQLModel, table=True):
     game_id: str | None = Field(default=None, primary_key=True)
-    play_id: str | None = Field(default=None, primary_key=True)
+    play_id: int | None = Field(default=None, primary_key=True)
     qb_location: str | None = None
     num_te: int | None = None
     num_rb: int | None = None
@@ -21,7 +21,6 @@ class Play(SQLModel, table=True):
     yards_after_catch: int | None = None
     pass_location: str | None = None
     route: str | None = None
-    is_drop: bool | None = None    
     play_action: bool | None = None
     screen_pass: bool | None = None
     qb_kneel: bool | None = None

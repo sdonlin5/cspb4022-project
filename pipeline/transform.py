@@ -29,54 +29,81 @@ def select_dimensions(raw_data: pl.LazyFrame, cols: list) -> pl.LazyFrame:
     output = raw_data.select(cols)
     return output
 
+def find_diff(subset_list, primary_list):
+    output = []
+    for i in subset_list:
+        if i not in primary_list:
+                output.append(i)
+    return output
 
-def transform_play(raw_pbp, raw_participation, raw_charting) -> pl.LazyFrame:
-    ''' Cre '''
+
+#def transform_play(raw_pbp,''' raw_participation, raw_charting''') -> pl.
+def transform_play(raw_pbp, raw_charting, raw_participation) -> pl.LazyFrame:
+
+    pbp_cols = ['game_id', 'play_id', 'yards_gained', 'rush_attempt', 'rush_touchdown', 'run_location', 'run_gap', 'pass_attempt', 'complete_pass','pass_touchdown', 'interception', 'air_yards', 'yards_after_catch','pass_location', 'qb_kneel', 'qb_spike', 'qb_dropback', 'qb_scramble', 'sack', 'penalty', 'aborted_play', 'special_teams_play']
+
+    charting_cols = ['nflverse_game_id', 'nflverse_play_id', 'qb_location', 'is_drop', 'is_play_action', 'is_screen_pass', 'is_qb_sneak', 'is_trick_play', 'is_throw_away', 'n_pass_rushers', 'n_blitzers']
     
-    pbp = raw_pbp.select([ 'game_id', 'play_id', 'yds_gained', 'rush_attempt', 'rush_touchdown', 'run_location', 'run_gap', 'pass_attempt', 'complete_pass', 'pass_touchdown', 'interception', 'air_yards', 'yards_after_catch','pass_location', 'qb_kneel', 'qb_spike', 'qb_dropback', 'qb_scramble', 'sack'
-        ])
+    participation_cols = ['nflverse_game_id', 'play_id', 'offense_positions', 'route', 'was_pressure', 'defenders_in_box', 'defense_man_zone_type', 'defense_coverage_type']
+
+
+    # select subset of columns for play table
+    pbp = raw_pbp.select(pbp_cols).filter(
+         (pl.col('penalty') == 0) &
+         (pl.col('aborted_play') == 0) & 
+         (pl.col('special_teams_play') == 0)
+         ).with_columns(
+              pl.col('play_id').cast(pl.Int32)
+              )
     
-    charting = raw_charting.select(['nflverse_game_id', 'qb_location', 'is_drop', 'play_action', 'screen_pass', 'qb_sneak', 'trick_play', 'n_pass_rushers', 'n_blitzers'])
+    charting = raw_charting.select(charting_cols).with_columns(
+         pl.col('nflverse_play_id').cast(pl.Int32)
+         )
 
-    participation = raw_participation.select(['nflverse_game_id', 'offense_positions', 'route', 'was_pressure', 'defenders_in_box', 'defense_man_zone_type', 'defense_coverage_type'])    
+    participation = raw_participation.select(participation_cols).with_columns(
+         pl.col('play_id').cast(pl.Int32)
+    )
+
+    print('pbp schema: ', pbp.schema, '\n\n')
+    print('charting schema: ', charting.schema, '\n\n')
+    print('participation schema: ', participation.schema, "\n\n")
+
+    joined = (pbp.join(
+                charting, 
+                left_on = ['game_id', 'play_id'],
+                right_on = ['nflverse_game_id', 'nflverse_play_id'],
+                how = 'left')
+                .join(
+                   participation, 
+                   left_on = ['game_id', 'play_id'],
+                   right_on = ['nflverse_game_id', 'play_id'],
+                   how = 'left')
+                )
     
-    result = (pbp.join(charting, left_on = 'game_id', 
-                        right_on = 'nflverse_game_id', how = 'left').join(
-                            participation, left_on = 'game_id', 
-                            right_on = 'nflverse_game_id',how = 'left'
-                            ))
-    return result 
-
-
-def merge_situation(pbp_lf, charting_lf) -> pl.LazyFrame: 
-    ''' Merges data for situation table. '''
-
-    pbp = pbp_lf.select(['game_id', 'play_id', 'game_id', 'posteam', 'yardline_100', 'quarter_seconds_remaining', 'down', 'goal_to_go', 'ydstogo'
-        ])
+    # boolean columns
+    bool_cols = ['rush_attempt', 'rush_touchdown', 'pass_attempt', 
+                 'complete_pass','pass_touchdown', 'interception', 'qb_kneel', 
+                 'qb_spike', 'qb_dropback', 'qb_scramble', 'sack']
     
-    charting = charting_lf.select(['nflverse_game_id','starting_hash'])
+    name_map = {'is_play_action': 'play_action',
+                'is_screen_pass': 'screen_pass',
+                'is_qb_sneak': 'qb_sneak',
+                'is_trick_play': 'trick_play'
+                }
+    
+    result = joined.with_columns(
+        # cast booleans
+        pl.col(bool_cols).cast(pl.Boolean),
 
-    result = (pbp.join(charting, left_on = 'game_id', 
-                       right_on = 'nflverse_game_id', how = 'left'
-                       ))
+        # extract positions
+        num_rb=(pl.col('offense_positions').str.count_matches('RB') + 
+                pl.col('offense_positions').str.count_matches('FB'))
+                .cast(pl.Int32),
+        num_te=(pl.col('offense_positions').str.count_matches('TE'))
+                .cast(pl.Int32),
+        num_wr= (pl.col('offense_positions').str.count_matches('WR'))
+                .cast(pl.Int32)
+    ).rename(name_map).drop(
+         ['offense_positions', 'penalty', 'aborted_play',
+          'special_teams_play',])
     return result
-
-
-
-
-def clean_pbp(raw_pbp: pl.LazyFrame, raw_participation: pl.LazyFrame,
-                   raw_charting: pl.LazyFame):
-    path = './data/dimension_definitions/pbp.txt'
-    cols = load_cols(path)
-    pbp_df = select_dimensions(raw_pbp, cols) # selects the column
-
-
-    path = './data/dimension_definitions/pbp.txt'
-    cols = load_cols(path)
-    pbp_df = select_dimensions(raw_pbp, cols) # selects the columns
-
-    return pbp_df
-
-    
-
-

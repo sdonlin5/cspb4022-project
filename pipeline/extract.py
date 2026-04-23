@@ -1,43 +1,35 @@
 ''' 
 Functions to load data and convert to polars lazyframe. 
 '''
-
 import nflreadpy as nfl
 import polars as pl
-from .utilities import get_dimensions
+#from .utilities import get_dimensions
 
 def extract_pbp(seasons: list = None) -> pl.LazyFrame:
     ''' Extract play by play data from NFLverse, default = 2025 season '''
-
     if seasons:
-        lf = nfl.load_pbp(seasons).lazy()
+        df = nfl.load_pbp(seasons)
     else: 
-        lf = nfl.load_pbp().lazy()
-
-    cols = get_dimensions('pbp')
-    lf.select(cols)
-    return lf.select(cols).collect()
-
+        df = nfl.load_pbp()
+    return df.lazy()
 
 def extract_schedules(seasons: list = None) -> pl.LazyFrame:
     ''' Extract schedule data from NFLverse, default = 2025 season'''
     if seasons:
-        lf = nfl.load_schedules(seasons).lazy() 
-        return 
+        df = nfl.load_schedules(seasons)
     else: 
-        lf = nfl.load_schedules().lazy()
-    cols = get_dimensions('schedule')
-    lf.select(cols)
-    return lf.select(cols).collect()
-    
-
+        df = nfl.load_schedules()
+    return df.lazy()
 
 def extract_participation(seasons: list = None) -> pl.LazyFrame:
-    ''' Extract player participation data from NFLverse default = 2025 season '''
+    ''' Extract player participation data from NFLverse default = 2025 season
+    Available from 2016'''
     if seasons:
-        return nfl.load_participation(seasons).lazy()
+        available_seasons = [s for s in seasons if s >= 2016]
+        df = nfl.load_participation(available_seasons)
     else:
-        return nfl.load_participation().lazy()
+        df =  nfl.load_participation()
+    return df.lazy()
 
 
 def extract_charting(seasons: list = None) -> pl.LazyFrame:
@@ -45,6 +37,7 @@ def extract_charting(seasons: list = None) -> pl.LazyFrame:
     if seasons:
         # only pass available seasons (from 2022)
         available_seasons = [s for s in seasons if s >= 2022]
-        return nfl.load_ftn_charting(available_seasons).lazy()
+        df = nfl.load_ftn_charting(available_seasons)
     else:
-        return nfl.load_ftn_charting().lazy()
+        df = nfl.load_ftn_charting()
+    return df.lazy()
