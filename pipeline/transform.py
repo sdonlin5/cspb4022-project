@@ -6,6 +6,7 @@ from unittest import result
 from dotenv import load_dotenv
 from datetime import date
 import polars.selectors as cs
+import polars as pl
 
 if TYPE_CHECKING:
     import polars as pl
@@ -69,10 +70,6 @@ def transform_play(raw_pbp: pl.DataFrame, raw_charting: pl.DataFrame, raw_partic
          pl.col('play_id').cast(pl.Int32)
     )
 
-    print('pbp schema: ', pbp.schema, '\n\n')
-    print('charting schema: ', charting.schema, '\n\n')
-    print('participation schema: ', participation.schema, "\n\n")
-
     joined = (pbp.join(
                 charting, 
                 left_on = ['game_id', 'play_id'],
@@ -114,7 +111,7 @@ def transform_play(raw_pbp: pl.DataFrame, raw_charting: pl.DataFrame, raw_partic
           'special_teams_play', 'nflverse_game_id', 'nflverse_play_id'])
     return result
 
-def tansform_schedule(raw_schedule: pl.DataFrame) -> pl.LazyFrame:
+def transform_schedule(raw_schedule: pl.DataFrame) -> pl.LazyFrame:
      ''' Transforms schedule data for ingestion '''
 
      sched_cols = ['game_id', 'season', 'game_type', 'week', 'game_day', 
