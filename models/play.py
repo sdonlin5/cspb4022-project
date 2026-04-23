@@ -21,6 +21,7 @@ class Play(SQLModel, table=True):
     yards_after_catch: int | None = None
     pass_location: str | None = None
     route: str | None = None
+    throw_away: bool | None = None
     play_action: bool | None = None
     screen_pass: bool | None = None
     qb_kneel: bool | None = None

@@ -1,8 +1,11 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 from pathlib import Path
-import os 
+import os
+from unittest import result 
 from dotenv import load_dotenv
+from datetime import date
+import polars.selectors as cs
 
 if TYPE_CHECKING:
     import polars as pl
@@ -37,8 +40,10 @@ def find_diff(subset_list, primary_list):
     return output
 
 
-#def transform_play(raw_pbp,''' raw_participation, raw_charting''') -> pl.
-def transform_play(raw_pbp, raw_charting, raw_participation) -> pl.LazyFrame:
+def transform_play(raw_pbp: pl.DataFrame, raw_charting: pl.DataFrame, raw_participation: pl.DataFrame) -> pl.LazyFrame:
+    ''' 
+    Transforms data from play-by-play, charting, and participation for ingestion
+    '''
 
     pbp_cols = ['game_id', 'play_id', 'yards_gained', 'rush_attempt', 'rush_touchdown', 'run_location', 'run_gap', 'pass_attempt', 'complete_pass','pass_touchdown', 'interception', 'air_yards', 'yards_after_catch','pass_location', 'qb_kneel', 'qb_spike', 'qb_dropback', 'qb_scramble', 'sack', 'penalty', 'aborted_play', 'special_teams_play']
 
@@ -88,7 +93,8 @@ def transform_play(raw_pbp, raw_charting, raw_participation) -> pl.LazyFrame:
     name_map = {'is_play_action': 'play_action',
                 'is_screen_pass': 'screen_pass',
                 'is_qb_sneak': 'qb_sneak',
-                'is_trick_play': 'trick_play'
+                'is_trick_play': 'trick_play', 
+                'is_throw_away' : 'throw_away'
                 }
     
     result = joined.with_columns(
@@ -105,5 +111,50 @@ def transform_play(raw_pbp, raw_charting, raw_participation) -> pl.LazyFrame:
                 .cast(pl.Int32)
     ).rename(name_map).drop(
          ['offense_positions', 'penalty', 'aborted_play',
-          'special_teams_play',])
+          'special_teams_play', 'nflverse_game_id', 'nflverse_play_id'])
     return result
+
+def tansform_schedule(raw_schedule: pl.DataFrame) -> pl.LazyFrame:
+     ''' Transforms schedule data for ingestion '''
+
+     sched_cols = ['game_id', 'season', 'game_type', 'week', 'game_day', 
+                  'weekday','away_team', 'away_score', 'home_team',
+                  'home_score']
+     result = (
+        raw_schedule.lazy()
+        .select(sched_cols)
+        .with_columns(date = pl.col('game_day').str.to_date("%m/%d/%y"))
+        .drop('game_day')
+            )
+     return result
+
+def transform_situation(raw_pbp: pl.DataFrame, raw_charting: pl.DataFrame) -> pl.LazyFrame:
+     pbp = raw_pbp.lazy().select(['game_id', 'play_id', 'posteam', 'yardline_100', 'qtr', 'down', 'quarter_seconds_remaining', 'goal_to_go', 'ydstogo'])
+     charting = raw_charting.lazy().select(['starting_hash', 'nflverse_game_id', 'nflverse_play_id'])
+
+     joined = pbp.join(
+          charting,
+          left_on=['game_id', 'play_id'], 
+          right_on=['nflverse_game_id', 'nflverse_play_id'],
+          how='left'
+     )
+     
+     result = joined.with_columns(
+          
+          starting_hash=pl.col('starting_hash').replace('O', 'M'),
+          
+          goal_to_go=pl.col('goal_to_go').cast(pl.Boolean),
+          
+          yd_line = pl.when(pl.col("yardline_100") < 50)
+                .then(pl.col("yardline_100") * -1)
+                .when(pl.col("yardline_100") > 50)
+                .then(100 - pl.col("yardline_100"))
+                .otherwise(50)
+                .cast(pl.Int32)
+        ).rename({
+             'starting_hash' : 'hash',
+             'quarter_seconds_remaining' : 'qtr_seconds'
+             
+            }
+        ).drop(['nflverse_game_id','nflverse_play_id', 'yardline_100'])
+     return result

@@ -1,10 +1,14 @@
 from sqlmodel import SQLModel, Field
+from datetime import date
 
-class Schedule(SQLModel, Table=True):
+
+class Schedule(SQLModel, table=True):
     game_id: str | None = Field(default = None, primary_key=True)
     season: int 
     game_type: str 
     week: int
+    date: date | None = None
+    weekday: str | None = None
     away_team: str
     away_score: int | None = None
     home_team: str
