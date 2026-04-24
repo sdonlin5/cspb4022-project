@@ -1,13 +1,17 @@
-from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from database.db import create_tables, get_session
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Action on startup
+    await create_tables()
+    yield
+    # Action on shutdown (if needed)
 
-# change PYTHONDONTWRITEBYTECODE back to 0
-
-
-
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 @app.get("/")
-async def root():
-    return {"message":"Hello World!"}
-
+async def root(session: AsyncSession = Depends(get_session)):
+    return {"message": "Hello World!"}

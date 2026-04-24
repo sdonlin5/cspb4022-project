@@ -2,6 +2,7 @@ game_id
 season
 game_type
 week
+game_day
 away_team
 away_score
 home_team

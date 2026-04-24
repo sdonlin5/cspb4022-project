@@ -59,29 +59,33 @@ def transform_play(raw_pbp: pl.DataFrame, raw_charting: pl.DataFrame, raw_partic
          (pl.col('aborted_play') == 0) & 
          (pl.col('special_teams_play') == 0)
          ).with_columns(
-              pl.col('play_id').cast(pl.Int32)
+              pl.col('play_id').cast(pl.Int32), 
+              pl.col('yards_gained').cast(pl.Int32), 
+              pl.col('air_yards').cast(pl.Int32),
+              pl.col('yards_after_catch').cast(pl.Int32)
               )
     
     charting = raw_charting.select(charting_cols).with_columns(
          pl.col('nflverse_play_id').cast(pl.Int32)
-         )
+         ).rename({'nflverse_game_id':'game_id','nflverse_play_id':'play_id'})
 
     participation = raw_participation.select(participation_cols).with_columns(
          pl.col('play_id').cast(pl.Int32)
+    ).rename({'nflverse_game_id':'game_id'})
+
+    joined = (
+        pbp.join(
+            charting,
+            on=['game_id', 'play_id'],
+            how='left'
+        ).join(
+            participation,
+            on=['game_id', 'play_id'],
+            how='left'
+        )
     )
 
-    joined = (pbp.join(
-                charting, 
-                left_on = ['game_id', 'play_id'],
-                right_on = ['nflverse_game_id', 'nflverse_play_id'],
-                how = 'left')
-                .join(
-                   participation, 
-                   left_on = ['game_id', 'play_id'],
-                   right_on = ['nflverse_game_id', 'play_id'],
-                   how = 'left')
-                )
-    
+
     # boolean columns
     bool_cols = ['rush_attempt', 'rush_touchdown', 'pass_attempt', 
                  'complete_pass','pass_touchdown', 'interception', 'qb_kneel', 
@@ -108,39 +112,50 @@ def transform_play(raw_pbp: pl.DataFrame, raw_charting: pl.DataFrame, raw_partic
                 .cast(pl.Int32)
     ).rename(name_map).drop(
          ['offense_positions', 'penalty', 'aborted_play',
-          'special_teams_play', 'nflverse_game_id', 'nflverse_play_id'])
+          'special_teams_play'])
     return result
+
 
 def transform_schedule(raw_schedule: pl.DataFrame) -> pl.LazyFrame:
      ''' Transforms schedule data for ingestion '''
 
-     sched_cols = ['game_id', 'season', 'game_type', 'week', 'game_day', 
-                  'weekday','away_team', 'away_score', 'home_team',
-                  'home_score']
-     result = (
-        raw_schedule.lazy()
-        .select(sched_cols)
-        .with_columns(date = pl.col('game_day').str.to_date("%m/%d/%y"))
-        .drop('game_day')
-            )
+     sched_cols = ['game_id', 'season', 'game_type', 'week',
+                   'away_team', 'away_score', 'home_team','home_score']
+     result = (raw_schedule.lazy().select(sched_cols))
      return result
 
 def transform_situation(raw_pbp: pl.DataFrame, raw_charting: pl.DataFrame) -> pl.LazyFrame:
      ''' Transforms situation data for ingestion '''
-     pbp = raw_pbp.lazy().select(['game_id', 'play_id', 'posteam', 'yardline_100', 'qtr', 'down', 'quarter_seconds_remaining', 'goal_to_go', 'ydstogo'])
-     charting = raw_charting.lazy().select(['starting_hash', 'nflverse_game_id', 'nflverse_play_id'])
+     pbp = raw_pbp.lazy().filter(
+          (pl.col('penalty') == 0) &
+          (pl.col('aborted_play') == 0) & 
+          (pl.col('special_teams_play') == 0)
+          ).select([
+               'game_id', 'play_id', 'posteam', 'yardline_100', 'qtr', 'down', 'quarter_seconds_remaining','home_score','away_score', 
+               'goal_to_go', 'ydstogo']).with_columns(
+          pl.col('play_id').cast(pl.Int32),
+          pl.col('qtr').cast(pl.Int32),
+          pl.col('down').cast(pl.Int32),
+          pl.col('home_score').cast(pl.Int32),
+          pl.col('away_score').cast(pl.Int32),
+          pl.col('quarter_seconds_remaining').cast(pl.Int32),
+          pl.col('ydstogo').cast(pl.Int32)
+          ) 
+
+     charting = raw_charting.lazy().select(['starting_hash', 'nflverse_game_id', 'nflverse_play_id']).rename({'nflverse_game_id':'game_id','nflverse_play_id':'play_id'})
 
      hash_map = {
           'O': 'M',
           '0': 'M'
      }
 
+
      joined = pbp.join(
           charting,
-          left_on=['game_id', 'play_id'], 
-          right_on=['nflverse_game_id', 'nflverse_play_id'],
+          on=['game_id', 'play_id'],
           how='left'
      )
+
      
      result = joined.with_columns(
           starting_hash=pl.col('starting_hash')
@@ -159,7 +174,7 @@ def transform_situation(raw_pbp: pl.DataFrame, raw_charting: pl.DataFrame) -> pl
              'quarter_seconds_remaining' : 'qtr_seconds',
              'ydstogo' : 'yds_to_go'
             }
-        ).drop(['nflverse_game_id','nflverse_play_id', 'yardline_100'])
+        ).drop(['yardline_100'])
      
     
      return result

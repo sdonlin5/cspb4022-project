@@ -1,7 +1,8 @@
-from .db import connect, create_tables, drop_all
+from .db import get_async_engine, create_tables, drop_all, get_session
 
 __all__ = [
-    'connect', 
+    'get_async_engine', 
     'create_tables',
-    'drop_all'
+    'drop_all',
+    'get_session'
 ]

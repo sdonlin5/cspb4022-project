@@ -7,8 +7,6 @@ class Schedule(SQLModel, table=True):
     season: int 
     game_type: str 
     week: int
-    date: date | None = None
-    weekday: str | None = None
     away_team: str
     away_score: int | None = None
     home_team: str
