@@ -4,7 +4,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
 from sqlmodel import SQLModel
 
-# Ensure models are imported so metadata is registered
 import models.play
 import models.situation
 import models.schedule
@@ -18,7 +17,6 @@ def get_db_url() -> str:
     return url
 
 # --- 1. SYNC ENGINE (For Streamlit/Reads) ---
-# Removes +asyncpg to use psycopg2 driver
 sync_url = get_db_url().replace("+asyncpg", "")
 sync_engine = create_engine(sync_url, pool_pre_ping=True)
 
