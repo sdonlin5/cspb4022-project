@@ -1,34 +1,34 @@
 import os
 from dotenv import load_dotenv
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, AsyncEngine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
 from sqlmodel import SQLModel
-from models.play import Play
-from models.situation import Situation
-from models.schedule import Schedule
+
+# Ensure models are imported so metadata is registered
+import models.play
+import models.situation
+import models.schedule
 
 load_dotenv()
 
-def get_async_engine() -> AsyncEngine:
-    DATABASE_URL = os.getenv('DATABASE_URL')
-    if not DATABASE_URL:
+def get_db_url() -> str:
+    url = os.getenv('DATABASE_URL')
+    if not url:
         raise ValueError('DATABASE_URL environment variable not set.')
-    return create_async_engine(DATABASE_URL, echo=True, future=True)
+    return url
 
-# Global engine instance
-engine = get_async_engine()
+# --- 1. SYNC ENGINE (For Streamlit/Reads) ---
+# Removes +asyncpg to use psycopg2 driver
+sync_url = get_db_url().replace("+asyncpg", "")
+sync_engine = create_engine(sync_url, pool_pre_ping=True)
 
-async def create_tables() -> None:
-    async with engine.begin() as conn:
+# --- 2. ASYNC ENGINE (For Pipeline/Writes) ---
+async_engine: AsyncEngine = create_async_engine(get_db_url(), future=True)
+
+async def create_tables():
+    async with async_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
 
-async def drop_all() -> None:
-    async with engine.begin() as conn:
+async def drop_all():
+    async with async_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.drop_all)
-
-async def get_session() -> AsyncSession:
-    async_session = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
-    async with async_session() as session:
-        yield session
